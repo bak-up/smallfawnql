@@ -1,30 +1,29 @@
 /**
  *
- * 自建模板
+ * Xbox俱乐部 微信小程序
  *
- * cron 0 0,7 * * *  demo.js         
- *  多账号并行执行任务模板
+ * cron 0 0,7 * * *  xbox_v2.js         
+ *  多账号并行执行任务模板V2  
+ * 捉域名https://h5.youzan.com/wscuser/域名下的extra-data中的sid
  */
 //=====================================================//
-const $ = new Env("十堰头条/月低保4.5");
-const notify = $.isNode() ? require("./sendNotify") : "";
+const $ = new Env("xbox俱乐部V2");
+const notify = $.isNode() ? require("../sendNotify") : "";
 const Notify = 1
 const debug = 0
-let ckStr = ($.isNode() ? process.env.sytt_data : $.getdata('sytt_data')) || '';  //检测CK  外部
-let msg, ck;
-
-
-let replytxtArr = ["好的政府办好事", "美丽十堰", "十堰欢迎大家", "我爱十堰", "十堰真的好美"];
-let randReply = randomInt(0, 4)
-let replytxt = replytxtArr[randReply]
+let ckStr = ($.isNode() ? process.env.xbox_data : $.getdata('xbox_data')) || '';  //检测CK  外部
+let msg = '', ck;
+let host = 'h5.youzan.com';
+let hostname = 'https://' + host;
 //---------------------------------------------------//
 async function tips(ckArr) {
-    //DoubleLog(`当前脚本版本${Version}\n📌,如果脚本版本不一致请及时更新`);
-    DoubleLog(`\n============= 共找到 ${ckArr.length} 个账号 =============`);
+    DoubleLog(`\n每日执行签到,积分兑换实物`);
+    //DoubleLog(`当前脚本版本 0.0.2\n📌,如果脚本版本不一致请及时更新`);
+    DoubleLog(`\n========== 共找到 ${ckArr.length} 个账号 ==========`);
     debugLog(`【debug】 这是你的账号数组:\n ${ckArr}`);
 }
 !(async () => {
-    let ckArr = await checkEnv(ckStr, "sytt_data");  //检查CK
+    let ckArr = await checkEnv(ckStr, "xbox_data");  //检查CK
     await tips(ckArr);  //脚本提示
     await start(); //开始任务
     await SendMsg(msg); //发送通知
@@ -36,8 +35,8 @@ async function tips(ckArr) {
 
 //---------------------------------------------------------------------------------封装循环测试
 async function newstart(name, taskname, time) {  //任务名 函数名 等待时间
-    let ckArr = await checkEnv(ckStr, "sytt_data");  //检查CK
-    console.log("\n📌📌📌📌📌📌📌📌" + name + "📌📌📌📌📌📌📌📌");
+    let ckArr = await checkEnv(ckStr, "xbox_data");  //检查CK
+    DoubleLog("\n📌📌📌📌📌📌📌📌" + name + "📌📌📌📌📌📌📌📌");
     for (i = 0; i < ckArr.length; i++) {
         ck = ckArr[i].split("&");                 //单账号多变量分割符,如果一个账号需要user和token两个变量,那么则输入user1&token1@user2&token2...   
         //let CK = ckArr[i]
@@ -48,233 +47,122 @@ async function newstart(name, taskname, time) {  //任务名 函数名 等待时
 //-------------------------------------------------------------------------------封装循环测试
 
 async function start() {
-    await newstart("签到", sign, 2)
-    await newstart("文章", getnewslist, 2)
-    //await newstart("帖子", gettielist, 2)
+    //console.log("\n📌📌📌📌📌📌📌📌执行任务1📌📌📌📌📌📌📌📌");
+    //for (i = 0; i < ckArr.length; i++) {
+    //    ck = ckArr[i].split("&");                 //单账号多变量分割符,如果一个账号需要user和token两个变量,那么则输入user1&token1@user2&token2...   
+    //    let CK = ckArr[i]
+    //    await userinfo();
+    //    await $.wait(2 * 1000);
+    //}
+    await newstart("查询", userinfo, 2)
+    await newstart("签到", checkin, 2)
 
 }
+//---------用户信息
+async function userinfo() {
+    try {
+        let url = {
+            url: `${hostname}/wscuser/membercenter/global.json?app_id=wx7f4f694622875202&kdt_id=100464643`,
+            headers: {
+                "Host": host,
+                "user-agent": "Mozilla/5.0 (Linux; Android 10; ELS-AN00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.92 Mobile Safari/537.36",
+                "extra-data": "{\"is_weapp\":1,\"sid\":\"" + ck[0] + "\"}"
+            },
 
+        };
+        let result = await httpGet(url, `用户信息查询`);
+
+        //console.log(result);
+        if (result?.code == 0) {
+            let nickName = result.data.user.nickName
+            await getpoints(nickName);
+            //console.log(`账号[` + Number(i + 1) + `]` + `用户[` + result.data.user.nickName + `]积分:` + points +`🎉`);
+        } else {
+            DoubleLog(`账号[` + Number(i + 1) + `]查询失败！`);
+            //console.log(result);
+        }
+    } catch (error) {
+        console.log(error);
+    }
+
+}
 
 
 
 //------------------------------------------------------------------------------------------
-//用户信息查询
-async function sign() {
+//用户积分查询
+async function getpoints(nickName) {
     try {
-        let options = {
-            method: 'GET',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: {
-                s: '/Api/Activityv1/sign',
-                token: ck[1],
-                uid: ck[0],
-                source: 'android',
-                ver: '6.2.3',
-                build: '145'
+        let url = {
+            url: `${hostname}/wscuser/membercenter/stats.json?app_id=wx7f4f694622875202&kdt_id=100464643`,
+            headers: {
+                "Host": host,
+                "user-agent": "Mozilla/5.0 (Linux; Android 10; ELS-AN00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.92 Mobile Safari/537.36",
+                "extra-data": "{\"is_weapp\":1,\"sid\":\"" + ck[0] + "\"}"
             },
-            headers: { Host: 'app.site.10yan.com.cn' }
+
         };
-        let result = await httpRequest(options, `签到`);
+        let result = await httpGet(url, `用户积分查询`);
 
         //console.log(result);
-        if (result.code == 200) {
-            console.log(`账号[` + Number(i + 1) + `]` + `签到成功:${result.retinfo} 🎉`);
-        } else if (result.code = 400) {
-            console.log(`账号[` + Number(i + 1) + `]` + `签到失败:${result.retinfo} ！`);
-            //console.log(result);
-        } else { console.log(`账号[` + Number(i + 1) + `]` + `签到失败:${result.retinfo} ！`); }
-    } catch (error) {
-        console.log(error);
-    }
-
-}
-
-
-//用户信息查询
-async function getnewslist() {
-
-    try {
-        let options = {
-            method: 'GET',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: { s: '/Api/Newsv4/newslist', page: '1', type: 'reply' },
-            headers: { Host: 'app.site.10yan.com.cn' },
-        };
-        let result = await httpRequest(options, `评论文章列表`);
-
-        //console.log(result);
-        if (result?.code == 200) {
-            //console.log(`获取评论文章成功🎉`);
-            await wait(2);
-
-            artID0 = result.list[0].contentid
-            //await artReply(artID0);
-            await artShare(artID0)
-            await wait(2);
-
-            artID1 = result.list[2].contentid
-            //await artReply(artID1);
-            await artShare(artID1)
-            await wait(2);
-
-            artID2 = result.list[4].contentid
-            //await artReply(artID2);
-            await artShare(artID2)
+        if (result?.code == 0) {
+            DoubleLog(`账号[` + Number(i + 1) + `]` + `用户[` + nickName + `]积分:${result.data.stats.points} 🎉`);
         } else {
-            console.log(`获取评论文章失败！`);
+            DoubleLog(`账号[` + Number(i + 1) + `]查询失败！`);
             //console.log(result);
         }
     } catch (error) {
-        console.log(error);
+        DoubleLog(error);
     }
 
 }
 
 
-
-
-
-//用户信息查询
-async function artReply(artID) {
+//用户签到
+async function checkin() {
     try {
-        let options = {
-            method: 'POST',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: {
-                s: '/Api/Article/artReply/',
-                actiontype: '12',
-                contentid: artID,
-                reply: replytxt,
-                uid: ck[0],
-                source: 'android',
-                ver: '6.2.3',
-                build: '145',
-                token: ck[1]
+        let url = {
+            url: `${hostname}/wscump/checkin/checkinV2.json?checkinId=1597464&app_id=wx7f4f694622875202&kdt_id=100464643`,
+            headers: {
+                "Host": host,
+                "user-agent": "Mozilla/5.0 (Linux; Android 10; ELS-AN00) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.92 Mobile Safari/537.36",
+                "extra-data": "{\"is_weapp\":1,\"sid\":\"" + ck[0] + "\"}"
             },
-            headers: { Host: 'app.site.10yan.com.cn' },
-            form: {}
+
         };
-        let result = await httpRequest(options, `评论文章`);
+        let result = await httpGet(url, `签到`);
 
         //console.log(result);
-        if (result?.code == 200) {
-            console.log(`账号[` + Number(i + 1) + `]评论文章成功🎉`);
+        if (result?.code == 0) {
+            DoubleLog(`账号[` + Number(i + 1) + `]` + `签到:${result.msg} 获得:${result.data.list[0].infos.title}🎉`);
             await wait(2);
-        } else {
-            console.log(`账号[` + Number(i + 1) + `]评论文章失败！`);
+        } else if (result?.code == 1000030071) {
+            DoubleLog(`账号[` + Number(i + 1) + `]` + `签到失败！原因${result.msg}`);
             //console.log(result);
+        } else {
+            DoubleLog(`账号[` + Number(i + 1) + `]` + `签到失败！原因${result.msg}`)
         }
     } catch (error) {
-        console.log(error);
+        DoubleLog(error);
     }
 
 }
 
 
 
-//用户信息查询
-async function artShare(artID) {
-    try {
-        let options = {
-            method: 'GET',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: {
-                s: '/Api/Activityv1/getNewsShareTask',
-                contentid: artID,
-                uid: ck[0],
-                source: 'android',
-                ver: '6.2.3',
-                build: '145',
-                token: ck[1]
-            },
-            headers: { Host: 'app.site.10yan.com.cn' },
-            form: {}
-        };
-        let result = await httpRequest(options, `分享文章`);
-
-        //console.log(result);
-        if (result?.code == 200) {
-            console.log(`账号[` + Number(i + 1) + `]分享文章成功🎉`);
-            await wait(2);
-        } else {
-            console.log(`账号[` + Number(i + 1) + `]分享文章失败！`);
-            //console.log(result);
-        }
-    } catch (error) {
-        console.log(error);
-    }
-
-}
-
-//用户信息查询
-async function gettielist() {
-
-    try {
-        let options = {
-            method: 'GET',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: { s: '/Api/Dynamic/' },
-            headers: { Host: 'app.site.10yan.com.cn' },
-        };
-        let result = await httpRequest(options, `帖子列表`);
-
-        //console.log(result);
-        if (result?.code == 200) {
-            //console.log(`获取评论文章成功🎉`);
-            tieID0 = result.data[0].id
-            //await tie(tieID0);
-            await wait(2);
-
-            tieID1 = result.data[2].id
-            //await tie(tieID1);
-            await wait(2);
-
-            tieID2 = result.data[4].id
-            //await tie(tieID2);
-        } else {
-            console.log(`获取帖子列表失败！`);
-            //console.log(result);
-        }
-    } catch (error) {
-        console.log(error);
-    }
-
-}
 
 
 
-async function tie(tieID) {
-    try {
-        let options = {
-            method: 'POST',
-            url: 'http://app.site.10yan.com.cn/index.php',
-            qs: { s: '/Api/Dynamic/reply/' },
-            headers: { Host: 'app.site.10yan.com.cn' },
-            form: {
-                content: replytxt,
-                uid: ck[0],
-                source: 'android',
-                ver: '6.2.3',
-                build: '145',
-                token: ck[1],
-                pid: tieID
-            }
-        };
-        let result = await httpRequest(options, `评论帖子`);
 
-        //console.log(result);
-        if (result?.code == 200) {
-            console.log(`账号[` + Number(i + 1) + `]评论帖子成功🎉`);
-            await wait(2);
-        } else {
-            console.log(`账号[` + Number(i + 1) + `]评论帖子失败！`);
-            //console.log(result);
-        }
-    } catch (error) {
-        console.log(error);
-    }
 
-}
+
+
+
+
+
+
+
+
 
 
 
@@ -324,7 +212,7 @@ async function SendMsg(message) {
     if (!message) return;
     if (Notify > 0) {
         if ($.isNode()) {
-            var notify = require("./sendNotify");
+            var notify = require("../sendNotify");
             await notify.sendNotify($.name, message);
         } else {
             // $.msg(message);
@@ -359,12 +247,6 @@ function wait(n) {
     });
 }
 
-/**
- * 随机整数生成
- */
-function randomInt(min, max) {
-    return Math.round(Math.random() * (max - min) + min);
-}
 /**
  * get请求
  */

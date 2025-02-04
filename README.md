@@ -1,16 +1,11 @@
 # QLScriptpublic
 # JD 京东账密登录协议版本已发布 DOCKER一键部署 对接青龙 对接BOT
 购买地址
-http://smshop.back1.idcfengye.com/
-
-体验地址
-http://smjd.back1.idcfengye.com/
+http://shop.smallfawn.top/
 
 
 
-# 由于特殊原因可能最近几年不会写脚本了 特此招收30名脚本携手共创QLPublicScript仓库 请把GITHUB用户名饲料发送给我 我给你们申请上传和编辑权限
-https://github.com/PickHeBin/Python-111
-time:2024/08/03
+
 
 本仓库魔改通知  smallfawnPushWhite白名单 smallfawnPushBlack黑名单 二选一
 ``````
@@ -19,7 +14,7 @@ export smallfawnPushWhite="脚本名字@脚本名字2"
 # 组织基地：QQ群1021185005
 # 青龙面板拉库命令
 ``````
-ql repo https://mirror.ghproxy.com/https://github.com/smallfawn/QLScriptPublic.git
+ql repo https://mirror.ghproxy.com/https://github.com/smallfawn/QLScriptPublic.git  backup  main
 ``````
 自用青龙docker搭建命令
 ``````
@@ -57,6 +52,7 @@ services:
 https://github.com/whyour/qinglong/tree/d6614acf66a243fddc494bcfcee44b3a55020591
 ``````
 #最新版青龙搭建命令
+``````
 docker run -dit \
 -v $PWD/ql:/ql/data \
 -p 5600:5700 \
@@ -67,8 +63,6 @@ docker run -dit \
 --no-healthcheck \
 --restart always \
 whyour/qinglong
-
-
 ``````
 这里的脚本只是自己学习 js 的一个实践 仅用于测试和学习研究，禁止用于商业用途，不能保证其合法性，准确性，完整性和有效性，请根据情况自行判断.
 
