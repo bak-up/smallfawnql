@@ -1,11 +1,12 @@
 /*
 ------------------------------------------
-@Author: sm
-@Date: 2024.06.07 19:15
-@Description: 测试
+@ cron: 5 * * * *
+@Author: smallfawn
+
 ------------------------------------------
-#Notice:
- 变量名jieshibang   抓小程序杰士邦会员中心https://api.vshop.hchiv.cn/jfmb/api  Headers中 authorization  去掉Bearer   多账号&连接
+#Notice: 每小时运行一次 ⚠️
+CK 名字 kuaishou_speed_openbox
+值: COOKIE#开宝箱sig3 多账号&连接
 ⚠️【免责声明】
 ------------------------------------------
 1、此脚本仅用于学习研究，不保证其合法性、准确性、有效性，请根据情况自行判断，本人对此不承担任何保证责任。
@@ -17,8 +18,9 @@
 7、所有直接或间接使用、查看此脚本的人均应该仔细阅读此声明。本人保留随时更改或补充此声明的权利。一旦您使用或复制了此脚本，即视为您已接受此免责声明。
 */
 
-const $ = new Env("杰士邦会员中心");
-let ckName = `jieshibang`;
+const $ = new Env("快手极速版开宝箱");
+let ckName = `kuaishou_speed_openbox`;
+
 const strSplitor = "#";
 const envSplitor = ["&", "\n"];
 const notify = $.isNode() ? require("./sendNotify") : "";
@@ -36,112 +38,57 @@ class Task extends Public {
         super();
         this.index = $.userIdx++
         let user = env.split("#");
-        this.token = user[0];
-        this.isSign = false;
+        this.cookkie = user[0];
+        this.sig3_openbox = user[1]
+        console.log()
     }
-    async addSign() {
+
+    async openbox() {
+        let data = JSON.stringify({});
+
+
+
+        $.log(`快手开宝箱  每小时运行一次`)
+
+
         let options = {
-            method: "POST",
-            url: "https://api.vshop.hchiv.cn/jfmb/api/play-default/sign/add-sign-new.do?sideType=3&mob=&appId=wx5966681b4a895dee&shopNick=wx5966681b4a895dee&timestamp=1739704494584&guideNo=&encryPlatId=d89385f4d1a7783414258f80d3fbedf6bb2d0e10f94fc010eb524fdd2a14f9a3",
+            method: 'POST',
+            url: `https://nebula.kuaishou.com/rest/wd/encourage/unionTask/treasureBox/report?__NS_sig3=${this.sig3_openbox}&sigCatVer=1`,
             headers: {
-                "accept": "*/*",
-                "accept-language": "zh-CN,zh;q=0.9",
-                "appenv": "test",
-                "authorization": "Bearer " + this.token,
-                "content-type": "application/json",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "cross-site",
-                "xweb_xhr": "1",
-                "cookie": "JSESSIONID=acb5cc02-db4e-4caf-9ebf-c5b67524ec06",
-                "Referer": "https://servicewechat.com/wx5966681b4a895dee/30/page-frame.html",
-                "Referrer-Policy": "unsafe-url"
+                'User-Agent': 'Mozilla/5.0 (Linux; Android 10; MI 8 Lite Build/QKQ1.190910.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/90.0.4430.226 KsWebView/1.8.90.770 (rel;r) Mobile Safari/537.36 Yoda/3.2.9-rc6 ksNebula/12.11.40.9331 OS_PRO_BIT/64 MAX_PHY_MEM/5724 KDT/PHONE AZPREFIX/az3 ICFO/0 StatusHT/29 TitleHT/44 NetType/WIFI ISLP/0 ISDM/0 ISLB/0 locale/zh-cn DPS/4.036 DPP/13 SHP/2068 SWP/1080 SD/2.75 CT/0 ISLM/0',
+                'Accept-Encoding': 'gzip, deflate',
+                'Content-Type': 'application/json',
+                'Origin': 'https://nebula.kuaishou.com',
+                'X-Requested-With': 'com.kuaishou.nebula',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Dest': 'empty',
+                'Referer': 'https://nebula.kuaishou.com/nebula/task/earning?layoutType=4&hyId=nebula_earning_ug_cdn&source=bottom_guide_second',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cookie': '' + this.cookkie
             },
-            data: JSON.stringify({
-                "appId": "wx5966681b4a895dee",
-                "openId": true,
-                "shopNick": "",
-                "timestamp": Date.now(),
-                "interfaceSource": 0,
-                "activityId": "156947"
-            }),
-        }
+            data: data
+        };
+
+
         try {
             let { data: res } = await this.request(options);
-            if (res.success == true) {
-                $.log(`签到成功 获得【${res.data.integral}】积分`)
-            } else {
-                $.log(`签到失败`)
-                console.log(res);
-            }
+            $.log(res);
+
         } catch (e) {
-            console.log(e);
-
+            console.log(e)
         }
+
     }
-    async activityInfo() {
-        let options = {
-            method: "POST",
-            url: "https://api.vshop.hchiv.cn/jfmb/api/activity/activity-info.do?sideType=3&mob=&appId=wx5966681b4a895dee&shopNick=wx5966681b4a895dee&timestamp=1739705505052&guideNo=&encryPlatId=d89385f4d1a7783414258f80d3fbedf6bb2d0e10f94fc010eb524fdd2a14f9a3",
-            headers: {
-                "accept": "*/*",
-                "accept-language": "zh-CN,zh;q=0.9",
-                "appenv": "test",
-                "authorization": "Bearer " + this.token,
-                "content-type": "application/json",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "cross-site",
-                "xweb_xhr": "1",
-                "cookie": "JSESSIONID=acb5cc02-db4e-4caf-9ebf-c5b67524ec06",
-                "Referer": "https://servicewechat.com/wx5966681b4a895dee/30/page-frame.html",
-                "Referrer-Policy": "unsafe-url"
-            },
-            data: JSON.stringify({
-                "appId": "wx5966681b4a895dee",
-                "openId": true,
-                "shopNick": "",
-                "timestamp": Date.now(),
-                "interfaceSource": 0,
-                "id": "156947"
-            }),
-        }
-        try {
-            let { data: res } = await this.request(options);
-            if (res.code == '1') {
 
-                if (res.data.isSign == false) {
-                    $.log(`今日未签到`)
-                    this.isSign = false
-                } else {
-                    $.log(`今日已签到`)
-                    this.isSign = true
-                }
-            } else {
-
-            }
-        } catch (e) {
-            console.log(e);
-
-        }
-    }
     async run() {
 
-        await this.activityInfo();
-        if (this.isSign == false) {
-            await this.addSign();
-        }
+
+        await this.openbox()
 
 
     }
-
-
 }
-
-
-
-
-
 
 
 !(async () => {
@@ -168,6 +115,7 @@ async function getNotice() {
         }
     }
     let { data: res } = await new Public().request(options);
+    $.log(res)
     return res
 }
 

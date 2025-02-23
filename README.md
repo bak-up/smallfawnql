@@ -3,8 +3,9 @@
 购买地址
 http://shop.smallfawn.top/
 
-
-
+# 定制脚本 20起步  看难度定价 支持一些滑块 设备指纹之类的
+# 联系QQ 860562056  一天只接3单
+# 排单网站目前还没做出来
 
 
 本仓库魔改通知  smallfawnPushWhite白名单 smallfawnPushBlack黑名单 二选一
@@ -14,7 +15,7 @@ export smallfawnPushWhite="脚本名字@脚本名字2"
 # 组织基地：QQ群1021185005
 # 青龙面板拉库命令
 ``````
-ql repo https://mirror.ghproxy.com/https://github.com/smallfawn/QLScriptPublic.git  backup  main
+ql repo https://ghproxy.net/https://github.com/smallfawn/QLScriptPublic.git  backup  main
 ``````
 自用青龙docker搭建命令
 ``````

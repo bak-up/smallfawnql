@@ -5,7 +5,6 @@
 @Description: 测试
 ------------------------------------------
 #Notice:
- 变量名jieshibang   抓小程序杰士邦会员中心https://api.vshop.hchiv.cn/jfmb/api  Headers中 authorization  去掉Bearer   多账号&连接
 ⚠️【免责声明】
 ------------------------------------------
 1、此脚本仅用于学习研究，不保证其合法性、准确性、有效性，请根据情况自行判断，本人对此不承担任何保证责任。
@@ -17,10 +16,11 @@
 7、所有直接或间接使用、查看此脚本的人均应该仔细阅读此声明。本人保留随时更改或补充此声明的权利。一旦您使用或复制了此脚本，即视为您已接受此免责声明。
 */
 
-const $ = new Env("杰士邦会员中心");
-let ckName = `jieshibang`;
+const $ = new Env("蔚来");
+let ckName = `testA`;
 const strSplitor = "#";
 const envSplitor = ["&", "\n"];
+process.env[ckName] = "testA#testB&testC#testD"
 const notify = $.isNode() ? require("./sendNotify") : "";
 const axios = require("axios");
 const defaultUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001e31) NetType/WIFI Language/zh_CN miniProgram"
@@ -36,112 +36,19 @@ class Task extends Public {
         super();
         this.index = $.userIdx++
         let user = env.split("#");
-        this.token = user[0];
-        this.isSign = false;
+        this.name = user[0];
+        this.passwd = user[1];
     }
-    async addSign() {
-        let options = {
-            method: "POST",
-            url: "https://api.vshop.hchiv.cn/jfmb/api/play-default/sign/add-sign-new.do?sideType=3&mob=&appId=wx5966681b4a895dee&shopNick=wx5966681b4a895dee&timestamp=1739704494584&guideNo=&encryPlatId=d89385f4d1a7783414258f80d3fbedf6bb2d0e10f94fc010eb524fdd2a14f9a3",
-            headers: {
-                "accept": "*/*",
-                "accept-language": "zh-CN,zh;q=0.9",
-                "appenv": "test",
-                "authorization": "Bearer " + this.token,
-                "content-type": "application/json",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "cross-site",
-                "xweb_xhr": "1",
-                "cookie": "JSESSIONID=acb5cc02-db4e-4caf-9ebf-c5b67524ec06",
-                "Referer": "https://servicewechat.com/wx5966681b4a895dee/30/page-frame.html",
-                "Referrer-Policy": "unsafe-url"
-            },
-            data: JSON.stringify({
-                "appId": "wx5966681b4a895dee",
-                "openId": true,
-                "shopNick": "",
-                "timestamp": Date.now(),
-                "interfaceSource": 0,
-                "activityId": "156947"
-            }),
-        }
-        try {
-            let { data: res } = await this.request(options);
-            if (res.success == true) {
-                $.log(`签到成功 获得【${res.data.integral}】积分`)
-            } else {
-                $.log(`签到失败`)
-                console.log(res);
-            }
-        } catch (e) {
-            console.log(e);
 
-        }
-    }
-    async activityInfo() {
-        let options = {
-            method: "POST",
-            url: "https://api.vshop.hchiv.cn/jfmb/api/activity/activity-info.do?sideType=3&mob=&appId=wx5966681b4a895dee&shopNick=wx5966681b4a895dee&timestamp=1739705505052&guideNo=&encryPlatId=d89385f4d1a7783414258f80d3fbedf6bb2d0e10f94fc010eb524fdd2a14f9a3",
-            headers: {
-                "accept": "*/*",
-                "accept-language": "zh-CN,zh;q=0.9",
-                "appenv": "test",
-                "authorization": "Bearer " + this.token,
-                "content-type": "application/json",
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "cross-site",
-                "xweb_xhr": "1",
-                "cookie": "JSESSIONID=acb5cc02-db4e-4caf-9ebf-c5b67524ec06",
-                "Referer": "https://servicewechat.com/wx5966681b4a895dee/30/page-frame.html",
-                "Referrer-Policy": "unsafe-url"
-            },
-            data: JSON.stringify({
-                "appId": "wx5966681b4a895dee",
-                "openId": true,
-                "shopNick": "",
-                "timestamp": Date.now(),
-                "interfaceSource": 0,
-                "id": "156947"
-            }),
-        }
-        try {
-            let { data: res } = await this.request(options);
-            if (res.code == '1') {
 
-                if (res.data.isSign == false) {
-                    $.log(`今日未签到`)
-                    this.isSign = false
-                } else {
-                    $.log(`今日已签到`)
-                    this.isSign = true
-                }
-            } else {
-
-            }
-        } catch (e) {
-            console.log(e);
-
-        }
-    }
     async run() {
 
-        await this.activityInfo();
-        if (this.isSign == false) {
-            await this.addSign();
-        }
 
+
+        console.log(this.index);
 
     }
-
-
 }
-
-
-
-
-
 
 
 !(async () => {
@@ -168,6 +75,7 @@ async function getNotice() {
         }
     }
     let { data: res } = await new Public().request(options);
+    $.log(res)
     return res
 }
 
