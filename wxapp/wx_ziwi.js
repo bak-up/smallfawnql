@@ -1,8 +1,11 @@
 /**
  * cron 25 10 * * *  wx_ZIWI+.js 
  * 积分换 猫粮狗粮
- * 变量名:ZIWIAUTH
- * 变量值:https://ziwi.gzcrm.cn/json-rpc? Headers中的authorization 去掉Bearer 去掉Bearer 去掉Bearer
+ * 变量名wxziwiwxid  值为lufly登录授权的微信id 用于获取微信CODE 来刷新CK
+ * 变量名luflytoken  谨慎使用加密本 防止偷取TOKEN
+ * 
+ * 
+ * 
  * 多账号& 或新增变量
  * scriptVersionNow = "0.0.1";
  */
@@ -14,23 +17,58 @@ let envSplitor = ["&", "\n"]; //多账号分隔符
 let strSplitor = "#"; //多变量分隔符
 let userIdx = 0;
 let userList = [];
-let msg = ""
+let appid = 'wxb26a710e583b05dc'
+let wxcenter = 'http://w.smallfawn.top:5789'
 class Task {
     constructor(str) {
         this.index = ++userIdx;
-        this.ck = str.split(strSplitor)[0]; //单账号多变量分隔符
+        this.wxid = str.split(strSplitor) //单账号多变量分隔符
         this.ckStatus = true;
         //定义在这里的headers会被get请求删掉content-type 而不会重置
         this.artList = []
+        this.ck = ''
     }
     async main() {
-        await this.task_sign()
-        await this.act_list();
-        if (this.artList.length > 0) {
-            for (let act of this.artList) {
-                await this.task_like(act)
-                await this.task_share(act)
+
+        await this.getCode()
+
+    }
+    async getCode() {
+        let { body: result } = await $.httpRequest({
+            method: 'post', headers: {
+                'Content-Type': 'application/json'
+            }, url: wxcenter + '/api/getcode', body: JSON.stringify({ "luflyKey": process.env['luflytoken'], "wxid": "" + this.wxid, "appid": "wxb26a710e583b05dc" })
+        })
+        if (result) {
+            console.log(result)
+            if (result.status) {
+                let code = result.data
+
+                await this.getJwtByCode(code)
+
             }
+
+        }
+    }
+    async getJwtByCode(code) {
+
+        let result = await this.taskRequest('post', 'https://ziwi.gzcrm.cn/json-rpc?__method=WechatMiniProgramCodeToSession', { "id": "", "jsonrpc": "2.0", "method": "WechatMiniProgramCodeToSession", "params": { "appId": "wxb26a710e583b05dc", "code": "" + code, "launchOptions": { "path": "pages/index/index", "query": {}, "referrerInfo": {}, "apiCategory": "default" } } })
+        if (result) {
+            if ('result' in result) {
+                if ('jwt' in result.result) {
+                    console.log(`刷新CK成功`)
+                    this.ck = result.result.jwt
+                    await this.task_sign()
+                    await this.act_list();
+                    if (this.artList.length > 0) {
+                        for (let act of this.artList) {
+                            await this.task_like(act)
+                            await this.task_share(act)
+                        }
+                    }
+                }
+            }
+
         }
     }
     async taskRequest(method, url, body = "") {
@@ -39,7 +77,7 @@ class Task {
             "Host": "ziwi.gzcrm.cn",
             "Connection": "keep-alive",
             //"Content-Length": "85",
-            "authorization": "Bearer "+ this.ck,
+            "authorization": "Bearer " + this.ck,
             "charset": "utf-8",
             "User-Agent": "Mozilla/5.0 (Linux; Android 10; MI 8 Lite Build/QKQ1.190910.002; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/116.0.0.0 Mobile Safari/537.36 XWEB/1160027 MMWEBSDK/20231002 MMWEBID/2585 MicroMessenger/8.0.43.2480(0x28002B51) WeChat/arm64 Weixin NetType/WIFI Language/zh_CN ABI/arm64 MiniProgramEnv/android",
             "content-type": "application/json;charset=UTF-8",
