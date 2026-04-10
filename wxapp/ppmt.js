@@ -315,7 +315,7 @@ async function Request(options) {
         const axios = require("axios");
         Request = async (options) => {
             try {
-                return await axios.request(options);
+                return axios.request(options);
             } catch (error) {
                 throw error && error.error ? error.error : "请求失败";
             }

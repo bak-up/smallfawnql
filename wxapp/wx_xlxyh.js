@@ -1,276 +1,560 @@
-/**
- * cron 5 10 * * *
- * Show:重写请求函数 在got环境或axios环境都可以请求
- * 微信小程序_骁龙骁友会 每日签到 点赞分享文章 免费抽奖一次 阅读和看视频以后更新
- * 变量名:wx_xlxyh 
- * 变量值:https://qualcomm.boysup.cn/qualcomm-app/    
- * headers请求头中 sessionkey的值和userid的值 用#拼接 用#拼接 用#拼接
- * 多账号&拼接
- * 需要手动进一次抽奖界面 进行抽奖后再来运行脚本
- * scriptVersionNow = "0.0.2";
- */
+const ckName = "wx_xlxyh";
 
-const $ = new Env("微信小程序_骁龙骁友会");
-const notify = $.isNode() ? require('../sendNotify') : '';
-let ckName = "wx_xlxyh";
-let envSplitor = ["&", "\n"]; //多账号分隔符
-let strSplitor = "#"; //多变量分隔符
-let userIdx = 0;
-let userList = [];
-class Task {
-    constructor(str) {
-        this.index = ++userIdx;
-        this.ck = str.split(strSplitor)[0]; //单账号多变量分隔符
-        this.ckStatus = true;
-        this.userId = str.split(strSplitor)[1];
-        this.UA = this.getUA()
-        this.openId = ""
-        this.articleId = ""
-
+// 工具类
+class Env {
+    constructor(name) {
+        this.name = name;
+        this.logs = [];
     }
 
-    async main() {
-        await this.UserInfoApi();
-        if (this.ckStatus) {
-            await this.updateClick(`userId=${this.userId}&openId=${this.openId}&activityId=&activitySource=Xcx_ShouYeShortCut&isWifi=1&model=microsoft&manufacturer=microsoft&urlQuery=%7B%22channel%22%3A%22Xcx_ShouYeShortCut%22%7D&urlPath=pages%2Ftask-center%2Findex&urlName=%E4%BB%BB%E5%8A%A1%E4%B8%AD%E5%BF%83%E9%A1%B5&referrer=&scene=1256&pageStatus=&sfMsgTitle=&elementId=&elementName=%E4%BB%BB%E5%8A%A1%E4%B8%AD%E5%BF%83_%E4%BB%8A%E6%97%A5%E7%AD%BE%E5%88%B0&elementType=%E9%A1%B5%E9%9D%A2&stallsName=%E4%BB%BB%E5%8A%A1%E4%B8%AD%E5%BF%83_%E4%BB%8A%E6%97%A5%E7%AD%BE%E5%88%B0&eventNameEn=MPClick`)
-            await this.SignInApi()
-            await this.updateClick(`userId=${this.userId}&openId=${this.openId}&activityId=7&activitySource=Xcx_MeiRiRenWu&isWifi=1&model=microsoft&manufacturer=microsoft&urlQuery=%7B%22channel%22%3A%22Xcx_MeiRiRenWu%22%7D&urlPath=pages%2Fwheel%2Findex&urlName=%E8%8A%AF%E5%8A%A8%E7%A6%8F%E5%88%A9&referrer=&scene=1256&pageStatus=&sfMsgTitle=&elementId=&elementName=%E7%82%B9%E5%87%BB%E6%8A%BD%E5%A5%96&elementType=%E9%A1%B5%E9%9D%A2&stallsName=&eventNameEn=MPClick`)
-            await this.LuckDrawApi()
-            await this.ArticleListApi()
-            if (this.articleId !== "") {
-                await this.ReadStartApi(this.articleId)
-                await this.LikeApi(this.articleId)
-                await this.ShareApi(this.articleId)
-                $.log(`模拟阅读55s`)
-                await $.wait(55000)
-                await this.ReadEndApi(this.articleId)
-            }
-        }
+    log(...args) {
+        const msg = args.join(" ");
+        this.logs.push(msg);
+        console.log(msg);
+    }
 
+    isNode() {
+        return typeof process !== "undefined" && process.release && process.release.name === 'node';
     }
-    async taskRequest(method, url, body = "") {
-       
-        let headers = {
-            //"requestId": "88bd9fdf29c845be8e41a1e122337d6b",
-            //timestamp: 1711330339720,
-            //xweb_xhr: 1,
-            //"openid": "o2jYV5ZUH59H9uGcY04vSdV0Rbso",
-            //"sign": "34bd7bc53e90128e6aba9d96dba5e40f",
-            //"timestamp": "1739706208412",
-            "Host": "qualcomm.boysup.cn",
-            //sign: "478d557229cdd6ac89128648a2a61e63",
-            Accept: "*/*",
-            "User-Agent": this.UA,
-            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
-            "Referer": "https://servicewechat.com/wx026c06df6adc5d06/413/page-frame.html",
-            "sessionKey": this.ck,
-            "userId": Number(this.userId),
+
+    getdata(key) {
+        if (this.isNode()) {
+            return process.env[key] || "";
         }
-       
-        this.openId !== "" ? Object.assign(headers, { "openId": this.openId }) : ""
-        const reqeuestOptions = {
-            url: url,
-            method: method,
-            headers: headers
-        }
-        //console.log(reqeuestOptions)
-        body == "" ? "" : Object.assign(reqeuestOptions, { body: body })
-        let { body: result } = await $.httpRequest(reqeuestOptions)
-        return result
+        return localStorage.getItem(key) || "";
     }
-    async LuckDrawApi() {
-        try {
-            let LuckDrawNumResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/luckDraw/list?userId=297212&activityId=7`)
-            if (LuckDrawNumResult.code == 200) {
-                //当前剩余签到次数 == 总数 //可以免费抽奖一次
-                if (LuckDrawNumResult.data.luckDrawCount == LuckDrawNumResult.data.luckDrawSumCount) {
-                    let LuckDrawTaskResult = await this.taskRequest("post", `https://qualcomm.boysup.cn/qualcomm-app/api/luckDraw/getLuck`,
-                        'userId=297212&activityId=7'
-                    )
-                    if (LuckDrawTaskResult.code == 200) {
-                        $.log(`账号[${this.userId}] 抽奖成功 获得[${LuckDrawTaskResult.data.name}]🎉`)
-                    } else {
-                        //console.log(LuckDrawTaskResult)
-                        $.log(`账号[${this.userId}] 抽奖失败 ${LuckDrawTaskResult.message}`);
+
+    wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async httpRequest(config) {
+        if (this.isNode()) {
+            const axios = require('axios');
+            return axios(config);
+        } else {
+            return new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open(config.method || 'GET', config.url);
+                
+                if (config.headers) {
+                    for (const [key, value] of Object.entries(config.headers)) {
+                        xhr.setRequestHeader(key, value);
                     }
                 }
-            } else {
-                $.log(`账号[${this.userId}] 获取抽奖信息失败 ${LuckDrawNumResult.message}`);
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async updateClick(body) {
-        /*try {
-            let Result = await this.taskRequest("post", `https://qualcomm.boysup.cn/qualcomm-app/api/messageSubscribeApp/save`, body)
-            if (Result.code == 200) {
-                $.log(`账号[${this.userId}] 上传点击成功`);
-            } else {
-                $.log(`账号[${this.userId}] 上传点击失败 ${Result.message}`);
-            }
-        } catch (e) {
-            console.log(e);
-        }*/
-    }
-    async UserInfoApi() {
-        try {
-            let UserInfoResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/user/info?userId=${this.userId}`)
-            if (UserInfoResult.code == 200) {
-                $.log(`✅账号[${this.userId}]  【昵称】[${UserInfoResult.data.nick}]  【等级】[${UserInfoResult.data.level}]  【现有积分】${UserInfoResult.data.coreCoin} 【累计获得】${UserInfoResult.data.cumulativeCoreCoin}🎉`);
-                this.openId = UserInfoResult.data.openId
-                this.ckStatus = true
-            } else {
-                $.log(`❌账号[${this.userId}] 获取个人信息失败 ${UserInfoResult.message}`);
-                this.ckStatus = false
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async ReadStartApi(articleId) {
-        try {
-            let ReadStartApi = await this.taskRequest("post", `https://qualcomm.boysup.cn/qualcomm-app/api/article/enterReadDaily`, `articleId=${articleId}&userId=${this.userId}`)
-            if (ReadStartApi.code == 200) {
-                $.log(`✅账号[${this.userId}]  阅读文章开始上传成功🎉`);
-
-            } else {
-                $.log(`❌账号[${this.userId}] 阅读文章开始上传失败 [${ReadStartApi.message}]`);
-
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async ReadEndApi(articleId) {
-        try {
-            let ReadEndApi = await this.taskRequest("post", `https://qualcomm.boysup.cn/qualcomm-app/api/article/exitReadDaily`, `articleId=${articleId}&userId=${this.userId}`)
-            if (ReadEndApi.code == 200) {
-                $.log(`✅账号[${this.userId}]  阅读文章结束上传成功🎉`);
-
-            } else {
-                $.log(`❌账号[${this.userId}] 阅读文章结束上传失败 [${ReadEndApi.message}]`);
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async ShareApi(articleId) {
-        try {
-            let ShareResult = await this.taskRequest("post", `https://qualcomm.boysup.cn/qualcomm-app/api/article/shareDaily`, `articleId=${articleId}&userId=${this.userId}`)
-            if (ShareResult.code == 200) {
-                $.log(`✅账号[${this.userId}]  分享文章成功`)
-            } else {
-                $.log(`❌账号[${this.userId}]  分享文章失败[${ShareResult.message}]`)
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async LikeApi(articleId) {
-        try {
-            let LikeResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/article/like?articleId=${articleId}&userId=${this.userId}`)
-            if (LikeResult.code == 200) {
-                $.log(`✅账号[${this.userId}]  点赞文章成功`)
-            } else {
-                $.log(`❌账号[${this.userId}]  点赞文章失败[${LikeResult.message}]`)
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async ArticleListApi() {
-        try {
-            let ArticleListResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/home/articles?page=1&size=20&userId=${this.userId}&type=0&searchDate=&articleShowPlace=%E9%AA%81%E5%8F%8B%E8%B5%84%E8%AE%AF%E5%88%97%E8%A1%A8%E9%A1%B5`)
-            if (ArticleListResult.code == 200) {
-                $.log(`✅账号[${this.userId}]  获取文章${ArticleListResult.message} 准备阅读/点赞/分享🎉`);
-
-                this.articleId = ArticleListResult.data.articleList[this.randomInt(1, 10)].id
-            } else {
-                $.log(`❌账号[${this.userId}]  获取文章失败[${ArticleListResult.message}]`)
-            }
-        } catch (e) {
-            console.log(e);
-        }
-    }
-    async SignInApi() {
-        try {
-            let SignInListResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/user/signList?userId=${this.userId}`)
-            if (SignInListResult.code == 200) {
-                if (SignInListResult.data.isSignToday == 1) {
-                    $.log(`✅账号[${this.userId}]  今天已经签到过了`);
-                } else {
-                    let SignInResult = await this.taskRequest("get", `https://qualcomm.boysup.cn/qualcomm-app/api/user/signIn?userId=${this.userId}`)
-                    if (SignInResult.code == 200) {
-                        $.log(`✅账号[${this.userId}]  签到成功[${SignInResult.data.coreCoin}]🎉`);
+                
+                xhr.onload = () => {
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        try {
+                            const data = JSON.parse(xhr.responseText);
+                            resolve({ data });
+                        } catch (e) {
+                            resolve({ data: xhr.responseText });
+                        }
                     } else {
-                        $.log(`❌账号[${this.userId}]  签到失败[${SignInResult.message}]`)
+                        reject(new Error(`HTTP ${xhr.status}: ${xhr.statusText}`));
                     }
-                }
-            }
-        } catch (e) {
-            console.log(e);
+                };
+                
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.send(config.data);
+            });
         }
-
     }
 
-    randomInt(min, max) {
-        return Math.round(Math.random() * (max - min) + min)
-    }
-    getUA() {
-        const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-        const safari_version = `${randomInt(600, 700)}.${randomInt(1, 4)}.${randomInt(1, 5)}`;
-        const ios_version = `${randomInt(12, 15)}.${randomInt(0, 6)}.${randomInt(0, 9)}`;
-        const ua_string = `Mozilla/5.0 (iPhone; CPU iPhone OS ${ios_version} like Mac OS X) AppleWebKit/${safari_version} (KHTML, like Gecko) Mobile/15E148 MicroMessenger/7.0.20(0x16001422) NetType/WIFI Language/zh_CN`;
-
-        return ua_string;
+    done() {
+        if (this.isNode()) {
+            process.exit(0);
+        }
     }
 }
 
+// 初始化环境
+const $ = new Env("骁龙骁友会");
 
+class XLXYH {
+    constructor(ck) {
+        const parts = ck.split("#");
+        this.ck = (parts[0] || "").trim();
+        this.userId = (parts[1] || "").trim();
+        this.openId = "";
+        this.valid = !!(this.ck && this.userId);
+    }
 
-!(async () => {
-    if (!(await checkEnv())) return;
-    if (userList.length > 0) {
-        let taskall = [];
-        for (let user of userList) {
-            if (user.ckStatus) {
-                taskall.push(user.main());
+    generateSign(timestamp, requestId, body = "") {
+        const crypto = require("crypto");
+        return crypto.createHash("md5")
+            .update(`${timestamp}${requestId}${body}boysup`)
+            .digest("hex");
+    }
+
+    uuid() {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+            const r = Math.random() * 16 | 0;
+            return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16);
+        });
+    }
+
+    async request(method, path, data = null, extraHeaders = {}, skipSign = false) {
+        if (!this.valid) {
+            return { code: 400, message: "CK无效" };
+        }
+
+        const timestamp = Date.now().toString();
+        const requestId = this.uuid().replace(/-/g, "");
+        const sign = skipSign ? "" : this.generateSign(timestamp, requestId, data || "");
+
+        const headers = {
+            "Host": "qualcomm.boysup.cn",
+            "Connection": "keep-alive",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "timestamp": timestamp,
+            "sign": sign,
+            "xweb_xhr": "1",
+            "openId": this.openId,
+            "requestId": requestId,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781(0x6700143B) NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF WindowsWechat(0x63090a13) UnifiedPCWindowsWechat(0xf254162e) XWEB/18151",
+            "userId": this.userId,
+            "sessionKey": this.ck,
+            "Referer": "https://servicewechat.com/wx026c06df6adc5d06/644/page-frame.html",
+            "Accept": "*/*",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "cors",
+            "Sec-Fetch-Dest": "empty",
+            ...extraHeaders
+        };
+
+        if (skipSign) {
+            delete headers.sign;
+        }
+
+        try {
+            const config = {
+                url: `https://qualcomm.boysup.cn${path}`,
+                method,
+                headers
+            };
+
+            if (data && method !== "GET") {
+                config.data = data;
+            }
+
+            const resp = await $.httpRequest(config);
+            
+            if (typeof resp.data === "object") {
+                return resp.data;
+            } else {
+                return JSON.parse(resp.data);
+            }
+        } catch (e) {
+            const msg = e.response?.data?.message || e.message || "网络错误";
+            $.log(`❌ 请求失败: ${msg} (路径: ${path})`);
+            if (e.response) {
+                $.log(`📄 响应数据: ${JSON.stringify(e.response.data)}`);
+            }
+            return { 
+                code: e.response?.status || 500, 
+                message: msg,
+                response: e.response
+            };
+        }
+    }
+
+    async getOpenId() {
+        $.log("🔍 尝试获取openId...");
+        const openIdRes = await this.request(
+            "GET", 
+            `/qualcomm-app/api/user/info?userId=${this.userId}`,
+            null,
+            {},
+            true
+        );
+        
+        if (openIdRes.code === 200 && openIdRes.data) {
+            this.openId = openIdRes.data.openId || "";
+            $.log(`✅ 获取到openId: ${this.openId || "空"}`);
+            return true;
+        } else {
+            $.log(`❌ 获取openId失败: ${openIdRes.message}`);
+            return false;
+        }
+    }
+
+    async run() {
+        if (!this.valid) {
+            $.log(`❌ CK格式错误，请使用: sessionKey#userId`);
+            return;
+        }
+
+        if (!(await this.getOpenId())) {
+            $.log("❌ 获取openId失败，可能sessionKey已过期");
+            return;
+        }
+
+        $.log("🔍 获取用户信息...");
+        const userInfo = await this.request("GET", `/qualcomm-app/api/user/info?userId=${this.userId}`);
+        if (userInfo.code !== 200) {
+            $.log(`❌ 账号[${this.userId}] 获取用户信息失败: ${userInfo.message}`);
+            if (userInfo.message.includes("登录过期") || userInfo.code === 401) {
+                $.log("⚠️ 登录已过期，请重新获取sessionKey和userId");
+                return;
+            }
+            return;
+        }
+
+        $.log(`✅ 【${userInfo.data.nick}】等级${userInfo.data.level} | 积分: ${userInfo.data.coreCoin}`);
+
+        $.log("🔍 检查签到状态...");
+        const signList = await this.request("GET", `/qualcomm-app/api/user/signList?userId=${this.userId}`);
+        if (signList.code === 200) {
+            if (signList.data?.isSignToday !== 1) {
+                $.log("🔍 开始签到...");
+                const signResult = await this.request("POST", `/qualcomm-app/api/user/signIn?userId=${this.userId}`);
+                if (signResult.code === 200) {
+                    $.log(`✅ 签到成功 +${signResult.data.coreCoin}积分`);
+                } else {
+                    $.log(`❌ 签到失败: ${signResult.message}`);
+                }
+            } else {
+                $.log("✅ 今日已签到");
+            }
+        } else {
+            $.log(`❌ 获取签到状态失败: ${signList.message}`);
+        }
+
+        await this.handleDrawTask();
+
+        await this.handleReadTask();
+
+        await this.handleVlogTask();
+    }
+
+    async handleDrawTask() {
+        $.log("🔍 开始抽奖任务...");
+        
+        // 修改为使用正确的抽奖接口
+        const drawResult = await this.request(
+            "POST", 
+            "/qualcomm-app/api/luckDraw/getLuck", 
+            `userId=${this.userId}&activityId=7`
+        );
+        
+        if (drawResult.code === 200) {
+            if (drawResult.data && drawResult.data.name) {
+                $.log(`✅ 抽奖成功: ${drawResult.data.name}`);
+            } else {
+                $.log(`✅ 抽奖成功: 获得奖励`);
+            }
+            
+            // 如果有积分信息，也显示出来
+            if (drawResult.data.coreCoin) {
+                $.log(`💰 获得积分: ${drawResult.data.coreCoin}`);
+            }
+        } else if (drawResult.code === 201) {
+            $.log(`ℹ️ ${drawResult.message || '抽奖提示'}`);
+        } else {
+            $.log(`❌ 抽奖失败: ${drawResult.message || '接口请求错误'}`);
+        }
+    }
+
+    async handleReadTask() {
+        $.log("🔍 获取文章列表...");
+        const articleRes = await this.request(
+            "GET", 
+            `/qualcomm-app/api/home/articles?page=1&size=10&userId=${this.userId}&type=0&searchDate=&articleShowPlace=骁友资讯列表页`
+        );
+
+        if (articleRes.code === 200 && articleRes.data?.articleList?.length) {
+            const article = articleRes.data.articleList[0];
+            $.log(`📖 开始阅读: ${article.title.substring(0, 20)}...`);
+
+            const enterRes = await this.request("POST", 
+                "/qualcomm-app/api/article/enterReadDaily", 
+                `articleId=${article.id}&userId=${this.userId}`
+            );
+            
+            if (enterRes.code !== 200) {
+                $.log(`⚠️ 进入阅读失败: ${enterRes.message}`);
+            }
+
+            const likeRes = await this.request("GET", 
+                `/qualcomm-app/api/article/like?articleId=${article.id}&userId=${this.userId}`
+            );
+            
+            if (likeRes.code === 200) {
+                $.log("👍 点赞成功");
+            } else {
+                $.log(`⚠️ 点赞失败: ${likeRes.message}`);
+            }
+
+            const shareRes = await this.request("POST", 
+                "/qualcomm-app/api/article/shareDaily", 
+                `articleId=${article.id}&userId=${this.userId}`
+            );
+            
+            if (shareRes.code === 200) {
+                $.log("🔗 分享成功");
+            } else {
+                $.log(`⚠️ 分享失败: ${shareRes.message}`);
+            }
+
+            $.log("⏳ 模拟阅读65秒...");
+            await $.wait(65000);
+
+            const exitRes = await this.request("POST", 
+                "/qualcomm-app/api/article/exitReadDaily", 
+                `articleId=${article.id}&userId=${this.userId}`
+            );
+            
+            if (exitRes.code === 200) {
+                $.log("✅ 阅读任务完成");
+            } else {
+                $.log(`⚠️ 退出阅读失败: ${exitRes.message}`);
+            }
+        } else {
+            $.log("ℹ️ 未获取到文章，跳过阅读任务");
+        }
+    }
+
+    async handleVlogTask() {
+        $.log("🔍 获取VLOG列表...");
+        
+        const vlogRes = await this.request(
+            "GET",
+            `/qualcomm-app/api/article/vlogList?page=1&size=20&userId=${this.userId}&sortBy=1`
+        );
+
+        if (vlogRes.code === 200 && vlogRes.data?.records?.length) {
+            const vlogs = vlogRes.data.records;
+            $.log(`✅ 获取到 ${vlogs.length} 个VLOG`);
+            
+            // 只获取第一个VLOG，不管是否已观看
+            const targetVlog = vlogs[0];
+            $.log(`🎬 开始观看第一个VLOG: ${targetVlog.title.substring(0, 20)}...`);
+            $.log(`📊 时长: ${targetVlog.videoDuration} | 播放: ${targetVlog.playCountFormat} | 点赞: ${targetVlog.likeCount}`);
+
+            const enterRes = await this.request(
+                "POST",
+                "/qualcomm-app/api/article/enterReadDaily",
+                `articleId=${targetVlog.id}&userId=${this.userId}`
+            );
+
+            if (enterRes.code === 200) {
+                $.log("✅ 进入VLOG观看成功");
+                
+                // 固定观看70秒，不管视频时长
+                const waitTime = 70000;
+                
+                $.log(`⏳ 模拟观看VLOG 70秒...`);
+                await $.wait(waitTime);
+
+                const exitRes = await this.request(
+                    "POST",
+                    "/qualcomm-app/api/article/exitReadDaily",
+                    `articleId=${targetVlog.id}&userId=${this.userId}`
+                );
+
+                if (exitRes.code === 200) {
+                    $.log("✅ VLOG观看任务完成");
+                    
+                    await this.request(
+                        "GET",
+                        `/qualcomm-app/api/article/like?articleId=${targetVlog.id}&userId=${this.userId}`
+                    );
+                    
+                    await this.request(
+                        "POST",
+                        "/qualcomm-app/api/article/shareDaily",
+                        `articleId=${targetVlog.id}&userId=${this.userId}`
+                    );
+                    
+                    $.log("✅ VLOG点赞和分享完成");
+                } else {
+                    $.log(`⚠️ 退出VLOG观看失败: ${exitRes.message}`);
+                }
+            } else {
+                $.log(`❌ 进入VLOG观看失败: ${enterRes.message}`);
+            }
+        } else {
+            $.log(`❌ 获取VLOG列表失败: ${vlogRes.message || '未知错误'}`);
+        }
+    }
+
+    async batchHandleVlogs(count = 1) {
+        // 修改默认只处理1个VLOG
+        $.log(`🔍 开始批量处理${count}个VLOG任务...`);
+        
+        const vlogRes = await this.request(
+            "GET",
+            `/qualcomm-app/api/article/vlogList?page=1&size=20&userId=${this.userId}&sortBy=1`
+        );
+
+        if (vlogRes.code === 200 && vlogRes.data?.records?.length) {
+            const vlogs = vlogRes.data.records;
+            
+            // 只处理前count个VLOG，不筛选是否已观看
+            const tasks = Math.min(count, vlogs.length);
+            let completed = 0;
+
+            for (let i = 0; i < tasks; i++) {
+                const vlog = vlogs[i];
+                $.log(`\n🎬 处理第 ${i + 1}/${tasks} 个VLOG: ${vlog.title.substring(0, 20)}...`);
+
+                try {
+                    const enterRes = await this.request(
+                        "POST",
+                        "/qualcomm-app/api/article/enterReadDaily",
+                        `articleId=${vlog.id}&userId=${this.userId}`
+                    );
+
+                    if (enterRes.code === 200) {
+                        // 固定观看70秒
+                        const waitTime = 70000;
+
+                        $.log(`⏳ 观看中... (70秒)`);
+                        await $.wait(waitTime);
+
+                        const exitRes = await this.request(
+                            "POST",
+                            "/qualcomm-app/api/article/exitReadDaily",
+                            `articleId=${vlog.id}&userId=${this.userId}`
+                        );
+
+                        if (exitRes.code === 200) {
+                            completed++;
+                            $.log(`✅ 第 ${i + 1} 个VLOG观看完成`);
+                            
+                            await this.request(
+                                "GET",
+                                `/qualcomm-app/api/article/like?articleId=${vlog.id}&userId=${this.userId}`
+                            );
+                            await this.request(
+                                "POST",
+                                "/qualcomm-app/api/article/shareDaily",
+                                `articleId=${vlog.id}&userId=${this.userId}`
+                            );
+                        }
+                    }
+                } catch (error) {
+                    $.log(`❌ 处理VLOG失败: ${error.message}`);
+                }
+
+                if (i < tasks - 1) {
+                    await $.wait(2000);
+                }
+            }
+
+            $.log(`\n🎉 批量VLOG任务完成: ${completed}/${tasks} 个VLOG观看成功`);
+            return completed;
+        } else {
+            $.log("❌ 无法获取VLOG列表");
+            return 0;
+        }
+    }
+}
+
+async function main() {
+    let cookies = [];
+    
+    if ($.isNode()) {
+        const raw = process.env[ckName] || "";
+        cookies = raw.split(/[#&\n]/).filter(Boolean);
+        
+        if (!cookies.length) {
+            const fs = require('fs');
+            try {
+                if (fs.existsSync(`${ckName}.txt`)) {
+                    const content = fs.readFileSync(`${ckName}.txt`, 'utf8');
+                    cookies = content.split(/[#&\n]/).filter(Boolean);
+                }
+            } catch (e) {
             }
         }
-        await Promise.all(taskall);
-    }
-    await $.sendMsg($.logs.join("\n"))
-})()
-    .catch((e) => console.log(e))
-    .finally(() => $.done());
-
-//********************************************************
-/**
- * 变量检查与处理
- * @returns
- */
-async function checkEnv() {
-    let userCookie = ($.isNode() ? process.env[ckName] : $.getdata(ckName)) || "";
-    if (userCookie) {
-        let e = envSplitor[0];
-        for (let o of envSplitor)
-            if (userCookie.indexOf(o) > -1) {
-                e = o;
-                break;
-            }
-        for (let n of userCookie.split(e)) n && userList.push(new Task(n));
     } else {
-        console.log(`未找到CK【${ckName}】`);
+        const raw = $.getdata(ckName) || "";
+        cookies = raw.split(/[#&\n]/).filter(Boolean);
+    }
+
+    if (!cookies.length) {
+        $.log(`🔔 未找到变量【${ckName}】，请添加`);
+        $.log(`💡 CK格式: sessionKey#userId`);
+        $.log(`📝 配置方法:`);
+        $.log(`   1. Node.js: 设置环境变量 ${ckName}="sessionKey#userId"`);
+        $.log(`   2. 浏览器: 设置 localStorage.${ckName}="sessionKey#userId"`);
+        $.log(`   3. 本地文件: 创建 ${ckName}.txt 文件，每行一个 sessionKey#userId`);
         return;
     }
-    return console.log(`共找到${userList.length}个账号`), true; //true == !0
+
+    const accounts = [];
+    for (let i = 0; i < cookies.length; i += 2) {
+        if (cookies[i] && cookies[i + 1]) {
+            accounts.push(`${cookies[i]}#${cookies[i + 1]}`);
+        } else if (cookies[i] && cookies[i].includes('#')) {
+            accounts.push(cookies[i]);
+        }
+    }
+
+    if (!accounts.length) {
+        $.log("❌ CK格式错误，请检查是否为 'sessionKey#userId' 格式");
+        return;
+    }
+
+    $.log(`🎯 共加载 ${accounts.length} 个账号`);
+
+    for (let i = 0; i < accounts.length; i++) {
+        const account = accounts[i];
+        $.log(`\n📱 开始处理账号 ${i + 1}/${accounts.length}`);
+        
+        try {
+            const xlxyh = new XLXYH(account);
+            
+            await xlxyh.run();
+            
+            const vlogCount = 1; // 只观看1个VLOG
+            await xlxyh.batchHandleVlogs(vlogCount);
+            
+            if (i < accounts.length - 1) {
+                await $.wait(3000);
+            }
+        } catch (error) {
+            $.log(`❌ 账号 ${i + 1} 处理失败: ${error.message}`);
+        }
+    }
+
+    if ($.isNode()) {
+        try {
+            if (process.env.NOTIFY_TOKEN || process.env.PUSH_PLUS_TOKEN || process.env.SERVER_CHAN_TOKEN) {
+                await sendNotify($.name, $.logs.join("\n"));
+            }
+        } catch (error) {
+        }
+    }
+
+    $.log("\n🎉 所有账号处理完成！");
 }
-//Env Api =============================
-/*
-*   @modifyAuthor @smallfawn 
-*   @modifyTime 2024-03-23
-*   @modifyInfo 重写请求函数 在got环境或axios环境都可以请求
-*/
-function Env(t, s) { return new (class { constructor(t, s) { this.name = t; this.data = null; this.dataFile = "box.dat"; this.logs = []; this.logSeparator = "\n"; this.startTime = new Date().getTime(); Object.assign(this, s); this.log("", `\ud83d\udd14${this.name},\u5f00\u59cb!`) } isNode() { return "undefined" != typeof module && !!module.exports } isQuanX() { return "undefined" != typeof $task } isSurge() { return "undefined" != typeof $httpClient && "undefined" == typeof $loon } isLoon() { return "undefined" != typeof $loon } loaddata() { if (!this.isNode()) return {}; { this.fs = this.fs ? this.fs : require("fs"); this.path = this.path ? this.path : require("path"); const t = this.path.resolve(this.dataFile), s = this.path.resolve(process.cwd(), this.dataFile), e = this.fs.existsSync(t), i = !e && this.fs.existsSync(s); if (!e && !i) return {}; { const i = e ? t : s; try { return JSON.parse(this.fs.readFileSync(i)) } catch (t) { return {} } } } } writedata() { if (this.isNode()) { this.fs = this.fs ? this.fs : require("fs"); this.path = this.path ? this.path : require("path"); const t = this.path.resolve(this.dataFile), s = this.path.resolve(process.cwd(), this.dataFile), e = this.fs.existsSync(t), i = !e && this.fs.existsSync(s), o = JSON.stringify(this.data); e ? this.writeFileSync(t, o) : i ? this.fs.writeFileSync(s, o) : this.fs.writeFileSync(t, o) } } lodash_get(t, s, e) { const i = s.replace(/\[(\d+)\]/g, ".$1").split("."); let o = t; for (const t of i) if (((o = Object(o)[t]), void 0 === o)) return e; return o } lodash_set(t, s, e) { return Object(t) !== t ? t : (Array.isArray(s) || (s = s.toString().match(/[^.[\]]+/g) || []), (s.slice(0, -1).reduce((t, e, i) => Object(t[e]) === t[e] ? t[e] : (t[e] = Math.abs(s[i + 1]) >> 0 == +s[i + 1] ? [] : {}), t)[s[s.length - 1]] = e), t) } getdata(t) { let s = this.getval(t); if (/^@/.test(t)) { const [, e, i] = /^@(.*?)\.(.*?)$/.exec(t), o = e ? this.getval(e) : ""; if (o) try { const t = JSON.parse(o); s = t ? this.lodash_get(t, i, "") : s } catch (t) { s = "" } } return s } setdata(t, s) { let e = !1; if (/^@/.test(s)) { const [, i, o] = /^@(.*?)\.(.*?)$/.exec(s), h = this.getval(i), a = i ? ("null" === h ? null : h || "{}") : "{}"; try { const s = JSON.parse(a); this.lodash_set(s, o, t), (e = this.setval(JSON.stringify(s), i)) } catch (s) { const h = {}; this.lodash_set(h, o, t), (e = this.setval(JSON.stringify(h), i)) } } else e = this.setval(t, s); return e } getval(t) { if (this.isSurge() || this.isLoon()) { return $persistentStore.read(t) } else if (this.isQuanX()) { return $prefs.valueForKey(t) } else if (this.isNode()) { this.data = this.loaddata(); return this.data[t] } else { return this.data && this.data[t] || null } } setval(t, s) { if (this.isSurge() || this.isLoon()) { return $persistentStore.write(t, s) } else if (this.isQuanX()) { return $prefs.setValueForKey(t, s) } else if (this.isNode()) { this.data = this.loaddata(); this.data[s] = t; this.writedata(); return true } else { return this.data && this.data[s] || null } } initRequestEnv(t) { try { require.resolve('got') && (this.requset = require("got"), this.requestModule = "got") } catch (e) { } try { require.resolve('axios') && (this.requset = require("axios"), this.requestModule = "axios") } catch (e) { } this.cktough = this.cktough ? this.cktough : require("tough-cookie"); this.ckjar = this.ckjar ? this.ckjar : new this.cktough.CookieJar(); if (t) { t.headers = t.headers ? t.headers : {}; if (typeof t.headers.Cookie === "undefined" && typeof t.cookieJar === "undefined") { t.cookieJar = this.ckjar } } } queryStr(options) { return Object.entries(options).map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : value}`).join('&') } getURLParams(url) { const params = {}; const queryString = url.split('?')[1]; if (queryString) { const paramPairs = queryString.split('&'); paramPairs.forEach(pair => { const [key, value] = pair.split('='); params[key] = value }) } return params } isJSONString(str) { try { return JSON.parse(str) && typeof JSON.parse(str) === 'object' } catch (e) { return false } } isJson(obj) { var isjson = typeof (obj) == "object" && Object.prototype.toString.call(obj).toLowerCase() == "[object object]" && !obj.length; return isjson } async sendMsg(message) { if (!message) return; if ($.isNode()) { await notify.sendNotify($.name, message) } else { $.msg($.name, '', message) } } async httpRequest(options) { let t = { ...options }; t.headers = t.headers || {}; if (t.params) { t.url += '?' + this.queryStr(t.params) } t.method = t.method.toLowerCase(); if (t.method === 'get') { delete t.headers['Content-Type']; delete t.headers['Content-Length']; delete t.headers['content-type']; delete t.headers['content-length']; delete t.body } else if (t.method === 'post') { let ContentType; if (!t.body) { t.body = "" } else if (typeof t.body === "string") { ContentType = this.isJSONString(t.body) ? 'application/json' : 'application/x-www-form-urlencoded' } else if (this.isJson(t.body)) { t.body = JSON.stringify(t.body); ContentType = 'application/json' } if (!t.headers['Content-Type'] && !t.headers['content-type']) { t.headers['Content-Type'] = ContentType } } if (this.isNode()) { this.initRequestEnv(t); if (this.requestModule === "axios" && t.method === "post") { t.data = t.body; delete t.body } let httpResult; if (this.requestModule === "got") { httpResult = await this.requset(t); if (this.isJSONString(httpResult.body)) { httpResult.body = JSON.parse(httpResult.body) } } else if (this.requestModule === "axios") { httpResult = await this.requset(t); httpResult.body = httpResult.data } return httpResult } if (this.isQuanX()) { t.method = t.method.toUpperCase(); return new Promise((resolve, reject) => { $task.fetch(t).then(response => { if (this.isJSONString(response.body)) { response.body = JSON.parse(response.body) } resolve(response) }) }) } } randomNumber(length) { const characters = '0123456789'; return Array.from({ length }, () => characters[Math.floor(Math.random() * characters.length)]).join('') } randomString(length) { const characters = 'abcdefghijklmnopqrstuvwxyz0123456789'; return Array.from({ length }, () => characters[Math.floor(Math.random() * characters.length)]).join('') } timeStamp() { return new Date().getTime() } uuid() { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8); return v.toString(16) }) } time(t) { let s = { "M+": new Date().getMonth() + 1, "d+": new Date().getDate(), "H+": new Date().getHours(), "m+": new Date().getMinutes(), "s+": new Date().getSeconds(), "q+": Math.floor((new Date().getMonth() + 3) / 3), S: new Date().getMilliseconds(), }; /(y+)/.test(t) && (t = t.replace(RegExp.$1, (new Date().getFullYear() + "").substr(4 - RegExp.$1.length))); for (let e in s) new RegExp("(" + e + ")").test(t) && (t = t.replace(RegExp.$1, 1 == RegExp.$1.length ? s[e] : ("00" + s[e]).substr(("" + s[e]).length))); return t } msg(s = t, e = "", i = "", o) { const h = (t) => !t || (!this.isLoon() && this.isSurge()) ? t : "string" == typeof t ? this.isLoon() ? t : this.isQuanX() ? { "open-url": t } : void 0 : "object" == typeof t && (t["open-url"] || t["media-url"]) ? this.isLoon() ? t["open-url"] : this.isQuanX() ? t : void 0 : void 0; this.isMute || (this.isSurge() || this.isLoon() ? $notification.post(s, e, i, h(o)) : this.isQuanX() && $notify(s, e, i, h(o))); let logs = ['', '==============📣系统通知📣==============']; logs.push(t); e ? logs.push(e) : ''; i ? logs.push(i) : ''; console.log(logs.join('\n')); this.logs = this.logs.concat(logs) } log(...t) { t.length > 0 && (this.logs = [...this.logs, ...t]), console.log(t.join(this.logSeparator)) } logErr(t, s) { const e = !this.isSurge() && !this.isQuanX() && !this.isLoon(); e ? this.log("", `\u2757\ufe0f${this.name},\u9519\u8bef!`, t.stack) : this.log("", `\u2757\ufe0f${this.name},\u9519\u8bef!`, t) } wait(t) { return new Promise((s) => setTimeout(s, t)) } done(t = {}) { const s = new Date().getTime(), e = (s - this.startTime) / 1e3; this.log("", `\ud83d\udd14${this.name},\u7ed3\u675f!\ud83d\udd5b ${e}\u79d2`); this.log(); if (this.isNode()) { process.exit(1) } if (this.isQuanX()) { $done(t) } } })(t, s) }
+
+main().catch(e => {
+    $.log(`❌ 脚本异常: ${e.message || e}`);
+    console.error(e.stack);
+}).finally(() => {
+    $.done();
+});
+
+async function sendNotify(title, content) {
+    if (!content) return;
+    
+    const notifyTokens = [
+        process.env.NOTIFY_TOKEN,
+        process.env.PUSH_PLUS_TOKEN,
+        process.env.SERVER_CHAN_TOKEN
+    ].filter(token => token);
+
+    for (const token of notifyTokens) {
+        try {
+            const notify = require('sendNotify');
+            await notify.sendNotify(title, content);
+            break;
+        } catch (error) {
+        }
+    }
+}
