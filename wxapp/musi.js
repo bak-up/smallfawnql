@@ -1,14 +1,16 @@
+
+
 /*
 ------------------------------------------
 @Author: sm
 @Date: 2024.06.07 19:15
-@Description:  慕思小程序 签到
-cron: 30 10 * * *
+@Description:  
+cron: 30 9 * * *
 ------------------------------------------
 #Notice:   
-抓取https://atom.musiyoujia.com抓包 请求头里的 api_token，请求包里的 openId #拼接
-多账号&或换行
-抓包后不要打开小程序避免刷新了token，有效期待测试，如出现 “Token有误” 则是 token过期了请重新抓取
+慕斯小程序签到 
+WeChatCodeServer 填写wx_server_url wx_auth 用于获取code 
+变量名称：musi
 ⚠️【免责声明】
 ------------------------------------------
 1、此脚本仅用于学习研究，不保证其合法性、准确性、有效性，请根据情况自行判断，本人对此不承担任何保证责任。
@@ -20,33 +22,90 @@ cron: 30 10 * * *
 7、所有直接或间接使用、查看此脚本的人均应该仔细阅读此声明。本人保留随时更改或补充此声明的权利。一旦您使用或复制了此脚本，即视为您已接受此免责声明。
 */
 
-const { Env } = require("../tools/env")
-const $ = new Env("慕思小程序");
+const {
+    Env
+} = require("../tools/env")
+const $ = new Env("慕斯小程序签到");
+const WeChatServer = require("./wcs.js");
 let ckName = `musi`;
 const strSplitor = "#";
 const axios = require("axios");
 const defaultUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001e31) NetType/WIFI Language/zh_CN miniProgram"
+let wechat = new WeChatServer({
+    url: process.env.wx_server_url || 'http://192.168.31.196:12081',
+    appid: 'wx03527497c5369a2c',
+    auth: process.env.wx_auth || "your-api-key",
 
+}
+);
 
 class Task {
     constructor(env) {
         this.index = $.userIdx++
         this.user = env.split(strSplitor);
-        this.activedAuthToken = this.user[0];
-        this.openId = this.user[1];
-        this.isSigned = false;
-        this.valid = false;
-        this.customId = ""
-
+        this.activedAuthToken = null
+        this.wcsid = this.user[0]
+        this.openId = null
     }
 
     async run() {
+        //随机延迟5-30s 模拟人工操作
+       await $.wait(Math.floor(Math.random() * 20 + 5) * 1000);
+        let { data: codeRes } = await wechat.getCode(this.wcsid)
+        if (codeRes.status) {
+            await this.getUserToken(codeRes.data.code)
+        }
+        if (!this.activedAuthToken) {
+            $.log(`账号[${this.index}] 获取用户Token失败❌`)
+            return
+        }
+
         await this.getUserInfo()
         await this.getJob()
         if (!this.isSigned) {
             await this.doSign()
         }
     }
+    async getUserToken(code) {
+        const timestamp = new Date().getTime();
+        let options = {
+            method: 'POST',
+            url: `https://atom.musiyoujia.com/user/wechatlogin/applets`,
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'User-Agent': defaultUserAgent,
+                "api_client_code": "65",
+                "api_version": "1.0.0",
+                'api_timestamp': timestamp,
+                'api_token': '',
+
+                'api_sign': this.MD5_Encrypt(`api_client_code=65&api_version=1.0.0&api_timestamp=${timestamp}`)?.toUpperCase()
+
+            }
+            ,
+            data:
+            {
+                'appId': 'wx03527497c5369a2c',
+                'appType': 'WECHAT_MINI_PROGRAM',
+                'code': '' + code,
+                'systemCode': '65'
+            }
+        }
+        let {
+            data: result
+        } = await axios.request(options);
+
+        if (result?.code == '0') {
+            this.openId = result.data.openId
+            this.activedAuthToken = result.data.token
+            $.log(`🌸账号[${this.index}] 获取用户Token成功:${this.activedAuthToken}`)
+        } else {
+            $.log(`🌸账号[${this.index}] 获取用户Token-失败:${result.msg}❌`)
+        }
+    }
+
+
+
     MD5_Encrypt(str) {
         const crypto = require("crypto")
         return crypto.createHash('md5').update(str).digest('hex');
@@ -71,6 +130,8 @@ class Task {
                 data: { "appId": "wx03527497c5369a2c", "appType": "WECHAT_MINI_PROGRAM", "openId": `${this.openId}` }
             }
             let { data: result } = await axios.request(options)
+
+
             if (result?.msg === "success") {
                 this.valid = true;
                 this.customId = result?.data.resMemberInfo.memberId;
@@ -156,33 +217,40 @@ class Task {
 
 
 
+
 }
 
 !(async () => {
     await getNotice()
     $.checkEnv(ckName);
-
-    for (let user of $.userList) {
-        await new Task(user).run();
+    if (process.env['wx_server_url'] && process.env['wx_auth']) {
+        for (let user of $.userList) {
+            await new Task(user).run();
+        }
+    } else {
+        
+        $.log(`${ckName}未配置微信SERVER配置 搭建可看仓库目录下的readme.md❌`)
+        return
     }
+
 })()
     .catch((e) => console.log(e))
     .finally(() => $.done());
 
 async function getNotice() {
-	try {
-		let options = {
-			url: `https://ghproxy.net/https://raw.githubusercontent.com/smallfawn/Note/refs/heads/main/Notice.json`,
-			headers: {
-				"User-Agent": defaultUserAgent,
-			},
-            timeout:3000
-		}
-		let {
-			data: res
-		} = await axios.request(options);
-		$.log(res)
-		return res
-	} catch (e) {}
+    try {
+        let options = {
+            url: `https://ghproxy.net/https://raw.githubusercontent.com/smallfawn/Note/refs/heads/main/Notice.json`,
+            headers: {
+                "User-Agent": defaultUserAgent,
+            },
+            timeout: 3000
+        }
+        let {
+            data: res
+        } = await axios.request(options);
+        $.log(res)
+        return res
+    } catch (e) { }
 
 }

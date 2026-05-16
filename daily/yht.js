@@ -5,18 +5,17 @@
 @Description:  
 @cron: 30 8 * * *
 ------------------------------------------
-
+益禾堂 qm-user-token
 ------------------------------------------
 
 */
-
+window = {}
 const {
     Env
 } = require("../tools/env")
-const $ = new Env("babycare");
-let ckName = `babycare`;
+const $ = new Env("益禾堂");
+let ckName = `yht`;
 const strSplitor = "#";
-
 const axios = require("axios");
 const defaultUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 MicroMessenger/8.0.31(0x18001e31) NetType/WIFI Language/zh_CN miniProgram"
 
@@ -26,12 +25,18 @@ class Task {
         this.index = $.userIdx++
         this.user = env.split(strSplitor);
         this.token = this.user[0];
+        this.activityUrl = ''
 
     }
 
     async run() {
 
         await this.getLoginUrl()
+
+        await this.getActivityToken()
+        let key = await this.getActivityKey()
+        await this.doSign(key)
+
     }
     async getLoginUrl() {
         let options = {
@@ -70,8 +75,8 @@ class Task {
         let {
             data: result
         } = await axios.request(options);
-        console.log(result);
         if (result.data && result.status) {
+            this.activityUrl = result.data
             return result.data
 
         }
@@ -107,8 +112,98 @@ class Task {
 
 
     }
+    async getActivityKey() {
 
+        let options = {
+            method: 'POST',
+            url: `https://86019-activity.dexfu.cn/chw/ctoken/getToken`,
+            headers: {
+                'Content-type': 'application/x-www-form-urlencoded',
+                'Cookie': this.session,
+            },
+            data: {
+                timestamp: Date.now(),
 
+            }
+
+        }
+        let {
+            data: result
+        } = await axios.request(options);
+        if (result.success) {
+            // 自动修复：将旧式八进制 (如 0123) 替换为现代写法 (0o123)
+            // 匹配以 0 开头后面跟数字，且不含 x (十六进制) 或 b (二进制) 的部分
+            const fixedCode = result.token.replace(/\b0([0-7]+)\b/g, '0o$1');
+            eval(fixedCode)
+            return window['620fa72t']
+
+        }
+    }
+    async doSign(key) {
+        let data = ({
+            'signOperatingId': '326649747164581',
+            'token': '' + key
+        });
+
+        let options = {
+            method: 'POST',
+            url: 'https://86019-activity.dexfu.cn/sign/component/doSign?_=' + Date.now(),
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 MicroMessenger/7.0.20.1781 NetType/WIFI MiniProgramEnv/Windows WindowsWechat/WMPF XWEB/50249',
+                'Accept': 'application/json, text/plain, */*',
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'origin': 'https://86019-activity.dexfu.cn',
+                'sec-fetch-site': 'same-origin',
+                'sec-fetch-mode': 'cors',
+                'sec-fetch-dest': 'empty',
+                'referer': 'https://86019-activity.dexfu.cn/sign/component/page?signOperatingId=326649747164581',
+                'accept-language': 'zh-CN,zh;q=0.9',
+                'Cookie': this.session
+            },
+            data: data
+        };
+        let {
+            data: result
+        } = await axios.request(options);
+        console.log(result);
+        
+        /*if (result.success) {
+            $.log(`✅ 签到成功！获得${result.data.signResult}积分`)
+        }*/
+
+    }
+    /**
+* 通用 eval 混淆解密函数（动态执行劫持）
+* @param {string} obfuscatedCode - 原始的混淆代码
+* @returns {string} - 解密后的真实代码
+*/
+    decryptByHookingEval(obfuscatedCode) {
+        let decryptedCode = "";
+
+        // 1. 备份系统原生的 eval
+        const originalEval = globalThis.eval;
+
+        try {
+            // 2. 劫持全局 eval 函数
+            globalThis.eval = function (payload) {
+                decryptedCode = payload; // 将解密后的字符串保存下来
+                // 重要：不往下执行原生的 eval，从而阻止危险/恶意代码实际运行
+            };
+
+            // 3. 构造一个沙箱函数并执行混淆代码的外壳
+            // 外壳代码会执行所有的解密运算，并最终调用我们上面劫持的 eval()
+            const runner = new Function(obfuscatedCode);
+            runner();
+
+        } catch (error) {
+            console.error("执行解密外壳时发生错误:", error);
+        } finally {
+            // 4. 无论成功与否，务必恢复系统的 eval，避免影响其他正常业务
+            globalThis.eval = originalEval;
+        }
+
+        return decryptedCode || "未能拦截到 eval 调用，可能代码结构不适用此方法。";
+    }
 
 
 

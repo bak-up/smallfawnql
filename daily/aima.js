@@ -60,7 +60,7 @@ async function signIn(token, index) {
     );
 
     const data = searchRes.data;
-    if (data.content && data.content.signed === 1) {
+    if (data.content && data.content.signStatus === 1) {
       $.log(`✅ 账号【${index}】今日已签到！`);
       return;
     }

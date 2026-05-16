@@ -8,7 +8,7 @@ cron: 30 10 * * *
 #Notice:   
 变量名：colorful
 抓取
-https://interface.skycolorful.com/api 请求头的authorization去掉Bearer 
+https://interface.skycolorful.com/api 请求头的authorization去掉Bearer # x-authorization去掉Bearer
 多账户&或换行
 
 ⚠️【免责声明】
@@ -35,6 +35,7 @@ class Task {
 		this.index = $.userIdx++
 		this.user = env.split(strSplitor);
 		this.token = this.user[0];
+		this.token2 = this.user[1];
 		this.signStatus = false;
 		this.expireFlag = false;
 	}
@@ -103,6 +104,7 @@ class Task {
 			"ticks": "" + timestamp,
 			"sign": sign,
 			"authorization": "Bearer " + this.token,
+			"x-authorization": "Bearer " + this.token2,
 			"source": "Wx",
 			"ucsource": "30",
 			"user-from": "xcx",
