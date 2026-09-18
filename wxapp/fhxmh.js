@@ -17,6 +17,8 @@ const axios = require("axios");
 
 const CK_NAME = "fhxmh";
 const APP = { name: "飞鹤星妈会", appid: "wxc83b55d61c7fc51d" };
+// 服务端业务成功码（签到成功时返回 code=000000 且 success=true）
+const OK_CODES = ["00000", "000000", "A00002"];
 const WX_SERVER_URL = (process.env.wx_server_url || "http://192.168.31.196:8787").replace(/\/$/, "");
 const WX_AUTH = process.env.wx_auth || "";
 const DEFAULT_OPENID = process.env.wx_openid || "";
@@ -101,7 +103,7 @@ class FeiheMom {
         if (method === "GET") opts.params = data || {};
         else opts.data = data === undefined ? {} : data;
         const res = await request(opts);
-        const ok = res.status === 200 && ["00000", "000000", "A00002"].includes(String(res.data?.code));
+        const ok = res.status === 200 && OK_CODES.includes(String(res.data?.code));
         if (!ok && !allowFail) throw new Error(`HTTP ${res.status}: ${short(res.data)}`);
         return res.data;
     }
@@ -116,6 +118,13 @@ class FeiheMom {
             transformRequest: [(data) => data],
         });
         const token = res.data?.data?.tokenInfo?.accessToken || res.data?.data?.accessToken || "";
+        // 服务端会以 code:"00000"/success:true 回一个只含 tempUid、tokenInfo:null 的响应，
+        // 那是「该微信号还不是会员」的临时身份，不是登录出错——照原样抛会显示成 HTTP 200 的登录失败。
+        if (res.status === 200 && !token && res.data?.data?.tempUid) {
+            const e = new Error("NO_ACCOUNT:登录只返回临时身份(tokenInfo 为空)");
+            e.unregistered = true;
+            throw e;
+        }
         if (res.status !== 200 || !token) throw new Error(`登录失败 HTTP ${res.status}: ${short(res.data)}`);
         this.token = token;
         return `token=${token.slice(0, 8)}***`;
@@ -155,7 +164,17 @@ class FeiheMom {
             data: { activityId, mockTime: Date.now() },
             allowFail: true,
         });
-        return `签到接口返回: ${short(sign)}`;
+        // 成功: {"ok":true,"success":true,"code":"000000","data":{"credits":1}}
+        if (sign?.success === true || OK_CODES.includes(String(sign?.code))) {
+            const credits = sign?.data?.credits ?? sign?.data?.point ?? sign?.data?.score;
+            return `签到成功${credits === undefined ? "" : `，+${credits}积分`} activityId=${activityId}`;
+        }
+        // 任务列表的已签标记字段不全，重复签到时靠服务端文案/业务码兜底
+        // 实测重复签到返回 {"code":"A00001","msg":"今天已经签到过了"}
+        if (String(sign?.code) === "A00001" || /已签|已经签|签到过|重复|already/i.test(`${sign?.message || ""}${sign?.msg || ""}`)) {
+            return `今日已签到 activityId=${activityId}`;
+        }
+        return `签到失败: ${short(sign)}`;
     }
 }
 
@@ -167,7 +186,12 @@ async function runAccount(openid, index) {
         $.log(`查询：${await runner.query()}`);
         $.log(`签到：${await runner.sign()}`);
     } catch (e) {
-        $.log(`执行失败：${e.message || e}`);
+        const m = String(e.message || e);
+        if (m.startsWith("NO_ACCOUNT")) {
+            $.log(`⚠️ 该微信号还没在飞鹤星妈会注册会员（${m.replace(/^NO_ACCOUNT:/, "")}），先在小程序里登录注册一次再跑`);
+            return;
+        }
+        $.log(`执行失败：${m}`);
     }
 }
 

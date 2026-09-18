@@ -12,7 +12,7 @@ const fs = require("fs");
 const path = require("path");
 
 // ================== 配置区 ==================
-const ACTIVITY_ID = "100001192";
+const ACTIVITY_ID = "100001275";
 const BASE_URL = "https://scrm.aimatech.com";
 const WXCLIENT_URL = `${BASE_URL}/aima/wxclient`;
 const MINI_APPID = "wx2dcfb409fd5ddfb4";
